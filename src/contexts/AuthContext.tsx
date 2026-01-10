@@ -34,35 +34,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (username: string, password: string) => {
     console.log('Attempting login for username:', username);
+    console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+    console.log('Supabase Key exists:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
 
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, username, email, role')
-      .eq('username', username)
-      .eq('password_hash', password)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, email, role')
+        .eq('username', username)
+        .eq('password_hash', password)
+        .maybeSingle();
 
-    console.log('Login response:', { data, error });
+      console.log('Login response:', { data, error });
 
-    if (error) {
-      console.error('Login error:', error);
-      throw new Error(`Login failed: ${error.message}`);
+      if (error) {
+        console.error('Login error:', error);
+        throw new Error(`Login failed: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('Invalid username or password');
+      }
+
+      const userData = {
+        id: data.id,
+        username: data.username,
+        email: data.email,
+        role: data.role as UserRole,
+      };
+
+      console.log('Login successful:', userData);
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+    } catch (err) {
+      console.error('Login exception:', err);
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        throw new Error('Cannot connect to database. Please check your internet connection and try again.');
+      }
+      throw err;
     }
-
-    if (!data) {
-      throw new Error('Invalid username or password');
-    }
-
-    const userData = {
-      id: data.id,
-      username: data.username,
-      email: data.email,
-      role: data.role as UserRole,
-    };
-
-    console.log('Login successful:', userData);
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
   };
 
   const logout = () => {
