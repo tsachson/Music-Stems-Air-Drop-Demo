@@ -218,23 +218,19 @@ export function StemSeparator() {
         return;
       }
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/separate-stems/start`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-          'Content-Type': 'application/json',
-          'apikey': supabaseAnonKey,
-        },
-        body: JSON.stringify({
+      const { data: result, error: invokeError } = await supabase.functions.invoke('separate-stems/start', {
+        body: {
           jobId: job.id,
           audioUrl: finalAudioUrl,
-        }),
+        },
       });
 
-      const result = await response.json();
+      if (invokeError) {
+        alert(`Failed to start separation: ${invokeError.message}`);
+        setIsProcessing(false);
+        loadJobs();
+        return;
+      }
 
       if (!result.success) {
         if (result.error?.includes('Replicate API token')) {
@@ -262,21 +258,15 @@ export function StemSeparator() {
   };
 
   const pollJobStatus = async (jobId: string) => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
     const poll = async () => {
-      const response = await fetch(`${supabaseUrl}/functions/v1/separate-stems/status`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-          'Content-Type': 'application/json',
-          'apikey': supabaseAnonKey,
-        },
-        body: JSON.stringify({ jobId }),
+      const { data: result, error: invokeError } = await supabase.functions.invoke('separate-stems/status', {
+        body: { jobId },
       });
 
-      const result = await response.json();
+      if (invokeError) {
+        console.error('Error checking status:', invokeError);
+        return;
+      }
 
       if (result.status === 'completed' || result.status === 'failed') {
         loadJobs();
