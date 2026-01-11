@@ -224,8 +224,8 @@ export function StemSeparator() {
       const response = await fetch(`${supabaseUrl}/functions/v1/separate-stems/start`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${supabaseAnonKey}`,
           'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey,
         },
         body: JSON.stringify({
           jobId: job.id,
@@ -268,8 +268,8 @@ export function StemSeparator() {
       const response = await fetch(`${supabaseUrl}/functions/v1/separate-stems/status`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${supabaseAnonKey}`,
           'Content-Type': 'application/json',
+          'apikey': supabaseAnonKey,
         },
         body: JSON.stringify({ jobId }),
       });
