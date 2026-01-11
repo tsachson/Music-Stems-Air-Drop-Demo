@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Music2, Upload, Loader2, CheckCircle2, XCircle, Download, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Music2, Upload, Loader2, CheckCircle2, XCircle, Download, AlertCircle, File, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -24,8 +24,13 @@ export function StemSeparator() {
   const [songTitle, setSongTitle] = useState('');
   const [genre, setGenre] = useState('Pop');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [jobs, setJobs] = useState<SeparationJob[]>([]);
   const [showApiKeyPrompt, setShowApiKeyPrompt] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const genres = ['Rock', 'Pop', 'Hip-Hop', 'Electronic', 'Jazz', 'R&B', 'Gospel', 'Country', 'World', 'Other'];
 
@@ -57,8 +62,112 @@ export function StemSeparator() {
     }
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const handleFileSelect = (file: File) => {
+    const validTypes = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/flac', 'audio/x-m4a', 'audio/mp4'];
+    const validExtensions = ['.mp3', '.wav', '.flac', '.m4a', '.mp4'];
+
+    const hasValidType = validTypes.includes(file.type);
+    const hasValidExtension = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+
+    if (!hasValidType && !hasValidExtension) {
+      alert('Please select a valid audio file (MP3, WAV, FLAC, M4A)');
+      return;
+    }
+
+    if (file.size > 100 * 1024 * 1024) {
+      alert('File size must be less than 100MB');
+      return;
+    }
+
+    setSelectedFile(file);
+    if (!songTitle) {
+      const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+      setSongTitle(nameWithoutExt);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      handleFileSelect(files[0]);
+    }
+  };
+
+  const uploadFile = async (file: File): Promise<string | null> => {
+    if (!user) return null;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('audio-files')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (error) {
+        console.error('Upload error:', error);
+        alert(`Failed to upload file: ${error.message}`);
+        setIsUploading(false);
+        return null;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from('audio-files')
+        .getPublicUrl(data.path);
+
+      setUploadProgress(100);
+      setIsUploading(false);
+
+      return urlData.publicUrl;
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Failed to upload file');
+      setIsUploading(false);
+      return null;
+    }
+  };
+
   const startSeparation = async () => {
-    if (!audioUrl || !songTitle || !user) return;
+    if (!songTitle || !user) return;
+
+    let finalAudioUrl = audioUrl;
+
+    if (selectedFile && !audioUrl) {
+      const uploadedUrl = await uploadFile(selectedFile);
+      if (!uploadedUrl) return;
+      finalAudioUrl = uploadedUrl;
+    }
+
+    if (!finalAudioUrl) {
+      alert('Please upload a file or provide a URL');
+      return;
+    }
 
     setIsProcessing(true);
 
@@ -81,7 +190,7 @@ export function StemSeparator() {
           artist_id: artist.id,
           title: songTitle,
           genre,
-          audio_file_url: audioUrl,
+          audio_file_url: finalAudioUrl,
         })
         .select()
         .single();
@@ -97,7 +206,7 @@ export function StemSeparator() {
         .insert({
           song_id: song.id,
           artist_id: artist.id,
-          original_audio_url: audioUrl,
+          original_audio_url: finalAudioUrl,
           status: 'pending',
         })
         .select()
@@ -120,7 +229,7 @@ export function StemSeparator() {
         },
         body: JSON.stringify({
           jobId: job.id,
-          audioUrl,
+          audioUrl: finalAudioUrl,
         }),
       });
 
@@ -139,6 +248,7 @@ export function StemSeparator() {
 
       setAudioUrl('');
       setSongTitle('');
+      setSelectedFile(null);
       setIsProcessing(false);
       loadJobs();
 
@@ -258,6 +368,90 @@ export function StemSeparator() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
+              Upload Audio File
+            </label>
+
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all ${
+                isDragging
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+              }`}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*,.mp3,.wav,.flac,.m4a"
+                onChange={handleFileInputChange}
+                className="hidden"
+              />
+
+              {selectedFile ? (
+                <div className="flex items-center justify-center gap-3">
+                  <File className="w-8 h-8 text-blue-600" />
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900">{selectedFile.name}</p>
+                    <p className="text-sm text-gray-500">
+                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedFile(null);
+                      if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                      }
+                    }}
+                    className="ml-auto p-2 hover:bg-gray-200 rounded-full transition-colors"
+                  >
+                    <X className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-700 font-medium mb-1">
+                    Drop your audio file here or click to browse
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    Supports MP3, WAV, FLAC, M4A (max 100MB)
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {isUploading && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                  <span>Uploading...</span>
+                  <span>{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">or</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Audio File URL
             </label>
             <input
@@ -266,15 +460,16 @@ export function StemSeparator() {
               onChange={(e) => setAudioUrl(e.target.value)}
               placeholder="https://example.com/song.mp3"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={!!selectedFile}
             />
             <p className="mt-2 text-sm text-gray-500">
-              Provide a direct URL to your audio file (MP3, WAV, FLAC, etc.)
+              Provide a direct URL to your audio file
             </p>
           </div>
 
           <button
             onClick={startSeparation}
-            disabled={!audioUrl || !songTitle || isProcessing}
+            disabled={(!audioUrl && !selectedFile) || !songTitle || isProcessing || isUploading}
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isProcessing ? (
@@ -284,7 +479,7 @@ export function StemSeparator() {
               </>
             ) : (
               <>
-                <Upload className="w-5 h-5" />
+                <Music2 className="w-5 h-5" />
                 Separate Stems
               </>
             )}
@@ -294,6 +489,7 @@ export function StemSeparator() {
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <h3 className="font-medium text-blue-900 mb-2">How it works:</h3>
           <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+            <li>Upload an audio file or provide a URL</li>
             <li>Uses Demucs AI model via Replicate API</li>
             <li>Separates into 4 stems: Vocals, Drums, Bass, Other</li>
             <li>Processing takes 2-5 minutes per song</li>
