@@ -218,26 +218,27 @@ export function StemSeparator() {
         return;
       }
 
-      const { data: result, error: invokeError } = await supabase.functions.invoke('separate-stems', {
-        body: {
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/separate-stems`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           action: 'start',
           jobId: job.id,
           audioUrl: finalAudioUrl,
-        },
+        }),
       });
 
-      if (invokeError) {
-        alert(`Failed to start separation: ${invokeError.message}`);
-        setIsProcessing(false);
-        loadJobs();
-        return;
-      }
+      const result = await response.json();
 
-      if (!result.success) {
+      if (!response.ok || !result.success) {
         if (result.error?.includes('Replicate API token')) {
           setShowApiKeyPrompt(true);
         } else {
-          alert(`Failed to start separation: ${result.error}`);
+          alert(`Failed to start separation: ${result.error || 'Unknown error'}`);
         }
         setIsProcessing(false);
         loadJobs();
@@ -260,17 +261,25 @@ export function StemSeparator() {
 
   const pollJobStatus = async (jobId: string) => {
     const poll = async () => {
-      const { data: result, error: invokeError } = await supabase.functions.invoke('separate-stems', {
-        body: {
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/separate-stems`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           action: 'status',
           jobId
-        },
+        }),
       });
 
-      if (invokeError) {
-        console.error('Error checking status:', invokeError);
+      if (!response.ok) {
+        console.error('Error checking status');
         return;
       }
+
+      const result = await response.json();
 
       if (result.status === 'completed' || result.status === 'failed') {
         loadJobs();
