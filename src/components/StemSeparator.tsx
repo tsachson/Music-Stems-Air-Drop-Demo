@@ -224,7 +224,7 @@ export function StemSeparator() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           action: 'start',
@@ -268,7 +268,7 @@ export function StemSeparator() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           action: 'status',
