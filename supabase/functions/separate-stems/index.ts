@@ -7,12 +7,9 @@ const corsHeaders = {
 };
 
 interface SeparationRequest {
+  action: 'start' | 'status';
   jobId: string;
-  audioUrl: string;
-}
-
-interface StatusRequest {
-  jobId: string;
+  audioUrl?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -28,12 +25,9 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const url = new URL(req.url);
-    const path = url.pathname;
+    const { action, jobId, audioUrl }: SeparationRequest = await req.json();
 
-    if (path.endsWith('/start') && req.method === 'POST') {
-      const { jobId, audioUrl }: SeparationRequest = await req.json();
-
+    if (action === 'start') {
       const replicateToken = Deno.env.get('REPLICATE_API_TOKEN');
       
       if (!replicateToken) {
@@ -52,7 +46,7 @@ Deno.serve(async (req: Request) => {
             error: 'Replicate API token not configured. Please add your Replicate API token at: https://replicate.com/account/api-tokens',
           }),
           {
-            status: 400,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
         );
@@ -87,7 +81,7 @@ Deno.serve(async (req: Request) => {
         return new Response(
           JSON.stringify({ success: false, error: errorText }),
           {
-            status: response.status,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
         );
@@ -110,25 +104,24 @@ Deno.serve(async (req: Request) => {
           status: prediction.status,
         }),
         {
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
 
-    if (path.endsWith('/status') && req.method === 'POST') {
-      const { jobId }: StatusRequest = await req.json();
-
+    if (action === 'status') {
       const { data: job, error: jobError } = await supabase
         .from('separation_jobs')
         .select('*')
         .eq('id', jobId)
-        .single();
+        .maybeSingle();
 
       if (jobError || !job) {
         return new Response(
           JSON.stringify({ success: false, error: 'Job not found' }),
           {
-            status: 404,
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
         );
@@ -143,6 +136,7 @@ Deno.serve(async (req: Request) => {
             error: job.error_message,
           }),
           {
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
         );
@@ -156,6 +150,7 @@ Deno.serve(async (req: Request) => {
             status: job.status,
           }),
           {
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
         );
@@ -177,6 +172,7 @@ Deno.serve(async (req: Request) => {
             status: job.status,
           }),
           {
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
         );
@@ -216,6 +212,7 @@ Deno.serve(async (req: Request) => {
             stems: stemsUrls,
           }),
           {
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
         );
@@ -236,6 +233,7 @@ Deno.serve(async (req: Request) => {
             error: prediction.error,
           }),
           {
+            status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
         );
@@ -247,15 +245,16 @@ Deno.serve(async (req: Request) => {
           status: prediction.status,
         }),
         {
+          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
+        }
+      );
     }
 
     return new Response(
-      JSON.stringify({ error: 'Not found' }),
+      JSON.stringify({ error: 'Invalid action' }),
       {
-        status: 404,
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );

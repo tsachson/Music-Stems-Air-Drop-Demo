@@ -218,8 +218,9 @@ export function StemSeparator() {
         return;
       }
 
-      const { data: result, error: invokeError } = await supabase.functions.invoke('separate-stems/start', {
+      const { data: result, error: invokeError } = await supabase.functions.invoke('separate-stems', {
         body: {
+          action: 'start',
           jobId: job.id,
           audioUrl: finalAudioUrl,
         },
@@ -259,8 +260,11 @@ export function StemSeparator() {
 
   const pollJobStatus = async (jobId: string) => {
     const poll = async () => {
-      const { data: result, error: invokeError } = await supabase.functions.invoke('separate-stems/status', {
-        body: { jobId },
+      const { data: result, error: invokeError } = await supabase.functions.invoke('separate-stems', {
+        body: {
+          action: 'status',
+          jobId
+        },
       });
 
       if (invokeError) {
