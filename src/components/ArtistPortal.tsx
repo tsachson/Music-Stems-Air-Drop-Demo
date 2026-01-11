@@ -10,8 +10,9 @@ import { LatestRemixes } from './LatestRemixes';
 import { MusicStemsAnnouncements } from './MusicStemsAnnouncements';
 import { SongUploadWizard } from './SongUploadWizard';
 import { UpcomingFeatures } from './UpcomingFeatures';
+import { StemSeparator } from './StemSeparator';
 
-type PageType = 'dashboard' | 'account' | 'upload' | 'mystems' | 'ecosystem' | 'remixes' | 'announcements' | 'upcoming';
+type PageType = 'dashboard' | 'account' | 'upload' | 'mystems' | 'ecosystem' | 'remixes' | 'announcements' | 'upcoming' | 'separator';
 
 export function ArtistPortal() {
   const { user, logout } = useAuth();
@@ -149,6 +150,21 @@ export function ArtistPortal() {
 
       {currentPage === 'upcoming' && (
         <UpcomingFeatures onBack={handleBackToDashboard} />
+      )}
+
+      {currentPage === 'separator' && (
+        <div className="min-h-screen bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            <button
+              onClick={handleBackToDashboard}
+              className="mb-6 flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Dashboard
+            </button>
+            <StemSeparator />
+          </div>
+        </div>
       )}
     </>
   );

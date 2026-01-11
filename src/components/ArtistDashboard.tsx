@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Music, Package, Upload, User, TrendingUp, Bell, Sparkles } from 'lucide-react';
+import { Music, Package, Upload, User, TrendingUp, Bell, Sparkles, Scissors } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { MapView } from './MapView';
@@ -124,6 +124,15 @@ export function ArtistDashboard({ onNavigate }: ArtistDashboardProps) {
           </button>
 
           <button
+            onClick={() => onNavigate('separator')}
+            className="bg-gradient-to-br from-blue-500 to-blue-700 text-white rounded-lg shadow-lg p-4 hover:shadow-xl transition-all border-2 border-blue-600 flex flex-col items-center justify-center min-h-[80px] hover:scale-105 relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-bl-lg">NEW</div>
+            <Scissors className="w-6 h-6 text-white mb-1" />
+            <p className="text-xs font-bold text-white text-center">AI Stem Separator</p>
+          </button>
+
+          <button
             onClick={() => onNavigate('upload')}
             className="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-all border-2 border-transparent hover:border-blue-500 flex flex-col items-center justify-center min-h-[80px] hover:scale-105"
           >
@@ -135,7 +144,7 @@ export function ArtistDashboard({ onNavigate }: ArtistDashboardProps) {
             onClick={() => onNavigate('mystems')}
             className="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-all border-2 border-transparent hover:border-blue-500 flex flex-col items-center justify-center min-h-[80px] hover:scale-105"
           >
-            <Package className="w-6 h-6 text-purple-600 mb-1" />
+            <Package className="w-6 h-6 text-blue-600 mb-1" />
             <p className="text-xs font-medium text-gray-900 text-center">My Stem Status</p>
           </button>
 
